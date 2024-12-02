@@ -13,11 +13,11 @@ class AmoCRMController extends Controller
     {
         $amoCRMIntegrity = new AmoCRMIntegrityController;
 
-        $leadsList = $amoCRMIntegrity->leads_list();
-        $leadsCollection = $leadsList->get();
+        $leads = $amoCRMIntegrity->leads_list();
+        
 
-        dd($leadsCollection);
-        return inertia('AmoCRM/Home', ['leads_collection'=>$leadsCollection]);
+        // dd($leads);
+        return inertia('AmoCRM/Home', ['leads'=>$leads]);
 
         return inertia('AmoCRM/Home');
     }
@@ -30,15 +30,33 @@ class AmoCRMController extends Controller
 
     public function contactBindingCreate(Request $request)
     {
+        $amoCRMIntegrity = new AmoCRMIntegrityController;
         $lead_id = $request->lead_id;
         $name = $request->name;
         $phone = $request->phone;
         $comment = $request->comment;
         // ----------
         // Нужно Привязать контакт в amoCRM
-        $result = 1; //от результата
-        $data = ""; //от результата
-        $data = json_encode($request->getContent(), JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT); //от результата
+        $result_response = $amoCRMIntegrity->add_contact_to_lead([
+            'LEAD_ID' => $lead_id,
+            'NAME' => $name,
+            'PHONE' => $phone,
+            'COMMENT' => $comment,
+        ]);
+        if($result_response=="result_succese") {
+            $result = 1;
+        }
+        if($result_response=="result_error") {
+            $result = 0;
+        }
+
+        if($result==1) {
+            // $data = json_encode($request->getContent(), JSON_UNESCAPED_UNICODE | JSON_FORCE_OBJECT);
+            $data = "Создан контакт ".$name." и привязан к сделке ID - ".$lead_id;
+        }
+        if($result==0) {
+            $data = "";
+        }
         // ----------
         $new_history_log = new HistoryLog;
         $new_history_log->action_date = now();
@@ -47,7 +65,7 @@ class AmoCRMController extends Controller
         $new_history_log->info = $data;
         $new_history_log->save();
         // ----------
-        $history_logs = HistoryLog::all();
+        // $history_logs = HistoryLog::all();
         // dd($history_logs);
 
         // return inertia('AmoCRM/History');
@@ -56,7 +74,8 @@ class AmoCRMController extends Controller
 
     public function history()
     {
-        $history_logs = HistoryLog::all();
+        // $history_logs = HistoryLog::all();
+        $history_logs = HistoryLog::orderByDesc('id')->get();
         // dd($history_logs);
 
         return inertia('AmoCRM/History', ['history_logs'=>$history_logs]);

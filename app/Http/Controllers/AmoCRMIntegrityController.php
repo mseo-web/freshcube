@@ -13,10 +13,15 @@ use AmoCRM\Models\CustomFieldsValues\MultitextCustomFieldValuesModel;
 use AmoCRM\Models\CustomFieldsValues\ValueCollections\MultitextCustomFieldValueCollection;
 use AmoCRM\Models\CustomFieldsValues\ValueModels\MultitextCustomFieldValueModel;
 use AmoCRM\Collections\Leads\LeadsCollection;
+use AmoCRM\Filters\LeadsFilter;
 use AmoCRM\Models\ContactModel;
 use AmoCRM\Filters\ContactsFilter;
 use AmoCRM\Models\LeadModel;
 use League\OAuth2\Client\Token\AccessTokenInterface;
+use AmoCRM\Collections\NotesCollection;
+use AmoCRM\Models\NoteType\ServiceMessageNote;
+use AmoCRM\Collections\LinksCollection;
+use AmoCRM\Helpers\EntityTypesInterface;
 
 define('TOKEN_FILE', DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . 'token_info.json');
 
@@ -187,8 +192,14 @@ class AmoCRMIntegrityController extends Controller
             ]);
         });
 
-        $leadsService = $apiClient->leads();
-        return $leadsService;
+        // $leadsService = $apiClient->leads();
+        // $leadsCollection = $leadsService->get();
+
+        $filter = new LeadsFilter();
+        $filter->setOrder("updated_at", "desc");
+
+        $leads = $apiClient->leads()->get($filter, [LeadModel::CONTACTS]);
+        return $leads;
     }
 
     public function add_lead($lead_data) {
@@ -266,6 +277,64 @@ class AmoCRMIntegrityController extends Controller
             printError($e);
             die;
         }
+    }
 
+    public function add_contact_to_lead($contact_data) {
+        $apiClient = $this->bootstrap();
+
+        $lead_id = $contact_data['LEAD_ID'];
+        $name = $contact_data['NAME'];
+        $phone = $contact_data['PHONE'];
+        $comment = $contact_data['COMMENT'];
+
+        $accessToken = $this->getToken();
+
+        $apiClient->setAccessToken($accessToken)
+        ->setAccountBaseDomain($accessToken->getValues()['baseDomain'])
+        ->onAccessTokenRefresh(
+        function (AccessTokenInterface $accessToken, string $baseDomain) {
+            $this->saveToken([
+                'accessToken' => $accessToken->getToken(),
+                'refreshToken' => $accessToken->getRefreshToken(),
+                'expires' => $accessToken->getExpires(),
+                'baseDomain' => $baseDomain,
+            ]);
+        });
+
+        $contact = new ContactModel();
+        $contact->setName($name);
+        $CustomFieldsValues = new CustomFieldsValuesCollection();
+        $phoneField = (new MultitextCustomFieldValuesModel())->setFieldCode('PHONE');
+        $phoneField->setValues((new MultitextCustomFieldValueCollection())->add((new MultitextCustomFieldValueModel())->setEnum('WORK')->setValue($phone)));
+        $CustomFieldsValues->add($phoneField);
+        $contact->setCustomFieldsValues($CustomFieldsValues);
+
+        $contactModel = $apiClient->contacts()->addOne($contact);
+        $contact_id = $contactModel->getId();
+
+        $notesCollection = new NotesCollection();
+        $serviceMessageNote = new ServiceMessageNote();
+        $serviceMessageNote
+            ->setEntityId($contactModel->getId())
+            ->setText($comment)
+            ->setService('Api Library');
+
+        $notesCollection = $notesCollection->add($serviceMessageNote);
+        $leadNotesService = $apiClient->notes(EntityTypesInterface::CONTACTS);
+        $leadNotesService->add($notesCollection);
+
+        $lead = $apiClient->leads()->getOne($lead_id);
+
+        $links = new LinksCollection();
+        $links->add($lead);
+
+        try {
+            $apiClient->contacts()->link($contactModel, $links);
+            return "result_succese";
+        } catch (AmoCRMApiException $e) {
+            // printError($e);
+            // die;
+            return "result_error";
+        }
     }
 }

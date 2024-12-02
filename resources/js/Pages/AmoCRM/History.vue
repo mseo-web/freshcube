@@ -33,15 +33,15 @@
                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Дата и время</th>
                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Действие</th>
                             <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Результат</th>
-                            <!-- <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Info</th> -->
+                            <th class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Info (Это можно скрыть)</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr v-for="item in history_logs" :key="item.id">
                             <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.action_date }}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.action }} "{{ item.action }}"</td>
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.action }}</td>
                             <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.result }}</td>
-                            <!-- <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.info }}</td> -->
+                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{{ item.info }}</td>
                         </tr>
                         </tbody>
                     </table>
